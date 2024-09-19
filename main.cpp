@@ -7,7 +7,7 @@
 
 class SharingService : public QObject {
     Q_OBJECT
-
+    Q_CLASSINFO("D-Bus Interface", "com.system.sharing");
 public:
     SharingService() {
         // Регистрация сервиса на потоке D-Bus
@@ -18,7 +18,7 @@ public:
             exit(1);
         }
 
-        // Регистрация интерфейса
+        // Регистрация интерфейса  корневым путем "/"
         if (QDBusConnection::sessionBus().registerObject("/", this, QDBusConnection::ExportAllSlots | QDBusConnection::ExportAllSignals)) {
             qDebug() << "Object registered successfully";
         } else {
@@ -28,8 +28,10 @@ public:
     }
 
 public Q_SLOTS:
-    void exampleMethod() {
-        qDebug() << "exampleMethod called";
+    QString exampleMethod(const QString &input) {
+        qDebug() << "exampleMethod called" << input;
+	qDebug() << "Hello world!" + input;
+        return input;
     }
 };
 
