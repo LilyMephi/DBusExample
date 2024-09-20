@@ -30,12 +30,13 @@ public:
     }
 public Q_SLOTS:   
     QString RegisterService(const QString &name, const QStringList supportedFormats){
-        
+            
 	    //В config.txt  будем сохранят информацию о сервисах
 	    QFile configFile("config.txt");
 
-	    //  Открываем файл чтобы записать туда информацию
+	    //  Открываем файл чтобы считать  отуда информацию
 	    //  если файл не открылся выводим информацию об ошибке 
+
             if (!configFile.open(QIODevice::ReadOnly | QIODevice::Text)){
 		    QString errmess =  "Cannot open the file \"config.txt\""; 
 		    qDebug() << errmess;
@@ -81,10 +82,51 @@ public Q_SLOTS:
 	    out << "\n";
 
            configFile.close();
-	    return nullptr;
+	    return "RegisterService works correctly";
    }
    QString OpenFile(QString path){
-	  // QStringList services = 
+	  QFileInfo fileInf(path);
+	  if(!fileInf.exists()){
+		  QString mess = "File does not exist";
+		  qDebug() << mess;
+		  return mess;
+          }
+	  QString formatFile = fileInf.suffix(); // Получаем  формат файлa
+	  QFile configFile("config.txt");
+          //  Открываем файл чтобы считать  отуда информацию
+	  //  если файл не открылся выводим информацию об ошибке 
+	  if (!configFile.open(QIODevice::ReadOnly | QIODevice::Text)){
+              QString errmess =  "Cannot open the file \"config.txt\""; 
+	      qDebug() << errmess;
+              return  errmess;
+          }
+	  
+	   QString services;
+	   
+	   bool isFormat = false;
+	   QTextStream out(&configFile);
+	   while(!configFile.atEnd()){
+	  	   QString line = out.readLine().trimmed();
+
+		   if(line.startsWith("Service: ")){
+			   services  = line.mid(9).trimmed(); 
+	           }else if(line.startsWith("Formats: ")){
+			   QStringList formats = line.mid(9).trimmed().split(",");
+			   if(formats.contains(formatFile)){
+				   isFormat = true;
+				   break; 
+			   }
+		   }
+           }
+	   configFile.close();
+	   if(!isFormat){
+		   QString mess = "No D-Bus services available to open the file";
+		   qDebug() << mess;
+		   return mess;
+           }
+
+
+	   return "OpenFile works correctly";
 
    }
 };
