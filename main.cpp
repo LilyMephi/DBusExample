@@ -5,6 +5,7 @@
 #include <QDBusMetaType>
 #include <QDebug>
 #include <QFile>
+#include <QtWidgets> 
 #include <QVector>
 class SharingService : public QObject {
     Q_OBJECT
@@ -32,43 +33,59 @@ public Q_SLOTS:
         
 	    //В config.txt  будем сохранят информацию о сервисах
 	    QFile configFile("config.txt");
+
 	    //  Открываем файл чтобы записать туда информацию
 	    //  если файл не открылся выводим информацию об ошибке 
-            if (!configFile.open(QIODevice::Append | QIODevice::Text)){
+            if (!configFile.open(QIODevice::ReadOnly | QIODevice::Text)){
 		    QString errmess =  "Cannot open the file \"config.txt\""; 
 		    qDebug() << errmess;
-		    return  errmess;
+                    return  errmess;
             }
 	    
 	    //Считываем сервисы чтобы проверить на наличие дубликатов
 	    QStringList existingServices;
 	    QString line;
-	    while (line = configFile.readLine(), !line.isNull()) {
-           	 if (line.startsWith("Service Name: ")) {
-                	existingServices << line.mid(14).trimmed();
-           	 }
+	    
+	    QTextStream in(&configFile);
+	    while(!in.atEnd()){
+		    line = in.readLine().trimmed();		  
+		    // Проверяем, что строка не пустая и начинается с "Name"
+                    if (line.startsWith("Service: ", Qt::CaseInsensitive)) {
+            	    	existingServices << line.mid(9).trimmed(); 
+			qDebug() << "Считанное имя:" << line.mid(9).trimmed();  
+              	    }
             }
-
+	
 	    // Проверяем на наличие дубликатов
             if (existingServices.contains(name)) {
-            	QString mess =  "Сервис с именем"+name +" уже зарегистрирован.";
+            	QString mess =  "Service with name: "+ name +" already exist";
 		qDebug() << mess;
+                configFile.close();
 		return mess;
             }
-
-            // Перемещаем указатель в конец файла
-            configFile.seek(0);
+	    configFile.close();
+ 	    //  Открываем файл чтобы записать туда информацию
+	    //  если файл не открылся выводим информацию об ошибке 
+            if (!configFile.open(QIODevice::Append | QIODevice::Text)){
+		    QString errmess =  "Cannot open the file \"config.txt\""; 
+		    qDebug() << errmess;
+                    configFile.close();
+		    return  errmess;
+            }
 
 	    //Записываем информацию о сервисе
 	    QTextStream out(&configFile);
-	    out << "Supported service: "<< name <<"\n";
-	    out << "Supported formats : ";
-	    for( const QString& str : supportedFormats){
-		 out << str << ",";
-	    }
+	    out << "Service: "<< name <<"\n";
+	    out << "Formats: ";
+	    out << supportedFormats.join(", ");
 	    out << "\n";
-           
+
+           configFile.close();
 	    return nullptr;
+   }
+   QString OpenFile(QString path){
+	  // QStringList services = 
+
    }
 };
 
@@ -77,7 +94,7 @@ int main(int argc, char *argv[]) {
 
     SharingService service;
 
-    qDebug() << "QDBus сервис запущен. Ожидание вызовов...";
+    qDebug() << "QDBus wait............";
 
     return app.exec();
 }
