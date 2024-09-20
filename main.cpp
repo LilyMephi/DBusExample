@@ -100,11 +100,16 @@ public Q_SLOTS:
           }
 	  
 	  //Проверяем содержит ли данный сервис нужный формат
+<<<<<<< HEAD
 	   QString service;
+=======
+	   QString services;
+>>>>>>> 17a8fc4 (add file using service)
 	   bool isFormat = false;
 	   QTextStream in(&configFile);
 	   QString line;
 
+<<<<<<< HEAD
 	   //Считываем данные из файла и проверяем есть ли у сервиса нужное расшиерние файла
 	    while(!in.atEnd()){
 		    QStringList formats;
@@ -129,10 +134,25 @@ public Q_SLOTS:
 
     	   configFile.close();
 
+=======
+		   if(line.startsWith("Service: ")){
+			   services  = line.mid(9).trimmed(); 
+	           }else if(line.startsWith("Formats: ")){
+			   QStringList formats = line.mid(9).trimmed().split(",");
+			   if(formats.contains(formatFile)){
+				   //
+				   isFormat = true;
+				   break; 
+			   }
+		   }
+           }
+	   configFile.close();
+>>>>>>> 17a8fc4 (add file using service)
 	   //Проверяем нашли ли мы сервер для открытия файла
 	   if(!isFormat){
 		   qDebug() << "No D-Bus services available to open the file";
 		   exit(-1);
+<<<<<<< HEAD
            }
 	   //Вывод найденого сервиса
 	   qDebug() << service << "can open " << formatFile;
@@ -146,8 +166,15 @@ public Q_SLOTS:
 	   if(!iface.isValid()){
 		   qDebug() << "Invalid interface: "  << iface.lastError().message();
 		   exit(-1);
+=======
+>>>>>>> 17a8fc4 (add file using service)
            }
+	   //Открываем сервис 
+	   // Можно добавить список сервисов чтобы если он не открылся
+	   // можно было бы использовать другой
+	   QDBusInterface ifaceFile(services, "/", services, QDBusConnection::sessionBus());
 
+<<<<<<< HEAD
 	   //Предпологаем что у сервиса есть функция  RunFile(name: string)
 	   //Которая запускает файл 	
 
@@ -165,6 +192,35 @@ public Q_SLOTS:
 	   qDebug() << name;
    }
 
+=======
+	   if(!ifaceFile.isValid()){
+		   qDebug() << "Invalid interface: "  << ifaceFile.lastError().message();
+		   exit(-1);
+	   }
+           // 
+	   // Далее метод который должен открыть файл
+	   // QDBusMessage reply = iface.call("SomeFunction", path);
+	   // Далее обрабатываем ответ
+	   // if(reply.type() == QDBusMessage::ErrorMessage){}
+	   // else{}
+	   //
+	   //Сделать ретерн ошибки а не простого сообщения!!!!
+   }
+
+   void OpenFileUsingService(QString path,QString service){	
+	   QDBusInterface iface(service, path, service, QDBusConnection::sessionBus());
+
+	   QDBusMessage reply = iface.call("OpenFile", path);
+	   if (reply.type() == QDBusMessage::ErrorMessage) {
+		   qDebug() << "Error to open service" << reply.errorMessage();
+    	   } else {
+           	  qDebug() << "Service" << service <<" is successfully open. Name: " ;
+    	   }
+   }
+
+
+ 
+>>>>>>> 17a8fc4 (add file using service)
 };
 
 int main(int argc, char *argv[]) {
