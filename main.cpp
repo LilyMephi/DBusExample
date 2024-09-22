@@ -7,6 +7,7 @@
 #include <QFile>
 #include <QtWidgets> 
 #include <QVector>
+#include <QDBusReply>
 class SharingService : public QObject {
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", "com.system.sharing");
@@ -36,7 +37,6 @@ public Q_SLOTS:
 
 	    //  Открываем файл чтобы считать  отуда информацию
 	    //  если файл не открылся выводим информацию об ошибке 
-
             if (!configFile.open(QIODevice::ReadOnly | QIODevice::Text)){
 		    qDebug() <<  "Cannot open the file \"config.txt\""; 
 		    exit(-1);
@@ -45,11 +45,10 @@ public Q_SLOTS:
 	    //Считываем сервисы чтобы проверить на наличие дубликатов
 	    QStringList existingServices;
 	    QString line;
-	    
 	    QTextStream in(&configFile);
 	    while(!in.atEnd()){
 		    line = in.readLine().trimmed();		  
-		    // Проверяем, что строка не пустая и начинается с "Name"
+		    // Проверяем, что строка не пустая и начинается с   "Service: "
                     if (line.startsWith("Service: ", Qt::CaseInsensitive)) {
             	    	existingServices << line.mid(9).trimmed(); 
 			qDebug() << "Считанное имя:" << line.mid(9).trimmed();  
@@ -63,6 +62,7 @@ public Q_SLOTS:
 		exit(-1);
             }
 	    configFile.close();
+
  	    //  Открываем файл чтобы записать туда информацию
 	    //  если файл не открылся выводим информацию об ошибке 
             if (!configFile.open(QIODevice::Append | QIODevice::Text)){
@@ -77,7 +77,7 @@ public Q_SLOTS:
 	    out << "Formats: ";
 	    out << supportedFormats.join(", ");
 	    out << "\n";
-
+		
            configFile.close();
    }
    void OpenFile(QString path){
@@ -100,61 +100,71 @@ public Q_SLOTS:
           }
 	  
 	  //Проверяем содержит ли данный сервис нужный формат
-	   QString services;
+	   QString service;
 	   bool isFormat = false;
-	   QTextStream out(&configFile);
-	   while(!configFile.atEnd()){
-	  	   QString line = out.readLine().trimmed();
+	   QTextStream in(&configFile);
+	   QString line;
 
-		   if(line.startsWith("Service: ")){
-			   services  = line.mid(9).trimmed(); 
-	           }else if(line.startsWith("Formats: ")){
-			   QStringList formats = line.mid(9).trimmed().split(",");
-			   if(formats.contains(formatFile)){
-				   //
-				   isFormat = true;
-				   break; 
-			   }
-		   }
-           }
-	   configFile.close();
+	   //Считываем данные из файла и проверяем есть ли у сервиса нужное расшиерние файла
+	    while(!in.atEnd()){
+		    QStringList formats;
+		    line = in.readLine();		    
+		    // Считываем сервис
+                    if (line.startsWith("Service: ", Qt::CaseInsensitive)) {
+		        service =  line.mid(9).trimmed(); 
+		    }
+		    // Считываем форматы данного сервиса
+                    if (line.startsWith("Formats: ", Qt::CaseInsensitive)) {
+			formats << line.mid(9).trimmed().split(", "); 
+			qDebug() << "Считанное имя:" <<  formats;
+		    }
+
+		    // если нужное расширение есть добовляем его в список
+		    if(formats.contains(formatFile)){
+			    isFormat = true;
+			    break;
+	            }
+
+            }
+
+    	   configFile.close();
+
 	   //Проверяем нашли ли мы сервер для открытия файла
 	   if(!isFormat){
 		   qDebug() << "No D-Bus services available to open the file";
 		   exit(-1);
            }
-	   //Открываем сервис 
-	   // Можно добавить список сервисов чтобы если он не открылся
-	   // можно было бы использовать другой
-	   QDBusInterface ifaceFile(services, "/", services, QDBusConnection::sessionBus());
-
-	   if(!ifaceFile.isValid()){
-		   qDebug() << "Invalid interface: "  << ifaceFile.lastError().message();
-		   exit(-1);
-	   }
-           // 
-	   // Далее метод который должен открыть файл
-	   // QDBusMessage reply = iface.call("SomeFunction", path);
-	   // Далее обрабатываем ответ
-	   // if(reply.type() == QDBusMessage::ErrorMessage){}
-	   // else{}
-	   //
-	   //Сделать ретерн ошибки а не простого сообщения!!!!
+	   //Вывод найденого сервиса
+	   qDebug() << service << "can open " << formatFile;
+	   //Открываем файл с помощью найденного сервиса
+	   OpenFileUsingService(path, service);
    }
 
    void OpenFileUsingService(QString path,QString service){	
-	   QDBusInterface iface(service, path, service, QDBusConnection::sessionBus());
+           //Подклюячаемся к сервису
+	   QDBusInterface iface(service,"/", service, QDBusConnection::sessionBus());
+	   if(!iface.isValid()){
+		   qDebug() << "Invalid interface: "  << iface.lastError().message();
+		   exit(-1);
+           }
 
-	   QDBusMessage reply = iface.call("OpenFile", path);
-	   if (reply.type() == QDBusMessage::ErrorMessage) {
-		   qDebug() << "Error to open service" << reply.errorMessage();
-    	   } else {
-           	  qDebug() << "Service" << service <<" is successfully open. Name: " ;
-    	   }
+	   //Предпологаем что у сервиса есть функция  RunFile(name: string)
+	   //Которая запускает файл 	
+
+	   // Отправляем D-Bus сообщение
+           QDBusMessage reply = iface.call("RunFile",path);
+	   // Проверяем на наличие ошибок
+   	   if (reply.type() == QDBusMessage::ErrorMessage) {
+                qDebug() << "Failed to open file:" << reply.errorMessage();
+		exit(-1);
+           } else {
+        	qDebug() << "The file is open by" << service;
+           }
+   }
+   void RunFile(QString name){
+	   qDebug() << name;
    }
 
-
- 
 };
 
 int main(int argc, char *argv[]) {
