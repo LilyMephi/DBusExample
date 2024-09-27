@@ -1,7 +1,7 @@
 QT += core dbus
 QT -= gui
 QT += widgets
-CONFIG += c++11
+CONFIG += c++11 console
 
 TARGET = SharingService
 TEMPLATE = app

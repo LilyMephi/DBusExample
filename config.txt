@@ -1,0 +1,2 @@
+Service: com.example.text
+Formats: odt, txt
