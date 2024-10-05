@@ -7,5 +7,5 @@ TARGET = ClientService
 TEMPLATE = app
 SOURCES += client.cpp
 
-LIBS += -L/home/lilycherly/Work/SharingService -lSharingService  
-INCLUDEPATH += /home/lilycherly/Work/SharingService
+LIBS += -L/path/to/SharingService -lSharingService  
+INCLUDEPATH += /path/to/SharingService
