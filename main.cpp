@@ -50,49 +50,9 @@ public:
                 qInfo() << name << "is already registered with formats" << registeredFormats;
     }
 
-    // Сохраняем изменения
-    settings.sync();
-
-/*
-	    //В config.txt  будем сохранят информацию о сервисах
-	    QFile configFile("config.txt");
-
-            //Считываем сервисы чтобы проверить на наличие дубликатов
-	    QStringList existingServices;
-	    QString line;
-	    QTextStream in(&configFile);
-	    while(!in.atEnd()){
-		    line = in.readLine().trimmed();		  
-		    // Проверяем, что строка не пустая и начинается с   "Service: "
-                    if (line.startsWith("Service: ", Qt::CaseInsensitive)) {
-            	    	existingServices << line.mid(9).trimmed();   
-              	    }
-            }
-	
-	    // Проверяем на наличие дубликатов
-            if (existingServices.contains(name)) {
-            	qInfo() <<  "Service with name: " << name << " already exist";
-                configFile.close();
-		return;
-            }
-	    configFile.close();
-
- 	    //  Открываем файл чтобы записать туда информацию
-	    //  если файл не открылся выводим информацию об ошибке 
-            if (!configFile.open(QIODevice::Append | QIODevice::Text)){
-                    configFile.close();
-		    qFatal("Cannot open the file config.txt"); 
-            }
-
-	    //Записываем информацию о сервисе
-	    QTextStream out(&configFile);
-	    out << "Service: "<< name <<"\n";
-	    out << "Formats: ";
-	    out << supportedFormats.join(", ");
-	    out << "\n";
-		
-           configFile.close();*/
-	   emit serviceRegistered(name);
+         // Сохраняем изменения
+         settings.sync();
+         emit serviceRegistered(name);
    }
    void OpenFile(QString path){
 	  QFileInfo fileInf(path);
