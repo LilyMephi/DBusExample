@@ -8,13 +8,7 @@
 using namespace std;
 
 int main(int argc, char *argv[]){
-	QCoreApplication app(argc, argv);
-	// Убедитесь, что имя файла передается как аргумент
-        if (argc < 2) {
-             cout << "Usage:" << argv[0] << " <file_path>" << endl;;
-            return -1;
-        }
-	string path = argv[1];
+	QCoreApplication app(argc, argv);	
 	const std::vector<std::string> supportedFormats = { "odt", "txt" };
 	const auto onOpenFile = [](const string path){
 		ifstream file(path);
@@ -28,10 +22,8 @@ int main(int argc, char *argv[]){
    		 }
 		file.close();
 	};
-	SharingService::SharingService service("com.example.text",supportedFormats,onOpenFile);
-	cout << "Service register correctly" << endl;
-	service.start(path);
-	cout << "Open file correctly" << endl;
+        SharingService service("com.example.text",supportedFormats,onOpenFile);
+	service.start();
 	return app.exec();
 }
 

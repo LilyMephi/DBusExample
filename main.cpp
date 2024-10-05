@@ -8,6 +8,7 @@
 #include <QtWidgets> 
 #include <QVector>
 #include <QDBusReply>
+#include <QSettings>
 #include <QObject>
 #include <QDBusPendingCall>
 
@@ -16,50 +17,47 @@ class SharingService : public QObject {
     Q_CLASSINFO("D-Bus Interface", "com.system.sharing");
 public:
     explicit SharingService(QObject* parent = nullptr): QObject(parent) {
+    
         // Регистрация сервиса на потоке D-Bus
         if (QDBusConnection::sessionBus().registerService("com.system.sharing")) {
-            qDebug() << "Service registered successfully";
+            qInfo() << "Service registered successfully";
         } else {
-            qDebug() << "Failed to register service:" << QDBusConnection::sessionBus().lastError().message();
-            exit(-1);
+            qDebug() << QDBusConnection::sessionBus().lastError().message();
+            qFatal("Failed to register service.");
         }
 
         // Регистрация интерфейса  корневым путем "/"
         if (QDBusConnection::sessionBus().registerObject("/", this, QDBusConnection::ExportAllSlots | QDBusConnection::ExportAllSignals)) {
-            qDebug() << "Object registered successfully";
+            qInfo() << "Object registered successfully";
 		} else {
-            qDebug() << "Failed to register object:" << QDBusConnection::sessionBus().lastError().message();
-            exit(-1);
+            qDebug()  << QDBusConnection::sessionBus().lastError().message();
+            qFatal("Failed to register object.");
         }
     }
 
  public slots:
     void RegisterService(QString name,QStringList supportedFormats){
             
+	    QSettings settings("config.ini",QSettings::IniFormat);
+	    // Проверяем, существует ли сервис
+            if (!settings.contains(name)) {
+            // Если сервис не найден, добавляем его
+            	settings.setValue(name + "/formats",supportedFormats.join(","));
+       	        qInfo() << name << " registered successfully with formats:" << supportedFormats.join(", ");
+            } else {
+           	 // Если сервис уже существует, выводим его форматы
+            	QString registeredFormats = settings.value(name + "/formats").toString();
+                qInfo() << name << "is already registered with formats" << registeredFormats;
+    }
+
+    // Сохраняем изменения
+    settings.sync();
+
+/*
 	    //В config.txt  будем сохранят информацию о сервисах
 	    QFile configFile("config.txt");
 
-	    //  Открываем файл чтобы считать  отуда информацию
-	    //  если файл не открылся выводим информацию об ошибке 
-            if (!configFile.open(QIODevice::ReadOnly | QIODevice::Text)){
-		    qDebug() <<  "Cannot open the file \"config.txt\""; 
-		    if (!configFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        	    	qDebug() << "Failed to open file for writen";
-        		exit(-1); // Завершение программы с кодом ошибки
-
-   		    }else{ 
-		    	//Записываем информацию о сервисе
-	    		QTextStream out(&configFile);
-	   		out << "Service: "<< name <<"\n";
-	   		out << "Formats: ";
-	    		out << supportedFormats.join(", ");
-	    		out << "\n";
-		
-           		configFile.close();
-			exit(0);
-		    }            
-	    }
-	    //Считываем сервисы чтобы проверить на наличие дубликатов
+            //Считываем сервисы чтобы проверить на наличие дубликатов
 	    QStringList existingServices;
 	    QString line;
 	    QTextStream in(&configFile);
@@ -73,7 +71,7 @@ public:
 	
 	    // Проверяем на наличие дубликатов
             if (existingServices.contains(name)) {
-            	qDebug() <<  "Service with name: " << name << " already exist";
+            	qInfo() <<  "Service with name: " << name << " already exist";
                 configFile.close();
 		return;
             }
@@ -82,9 +80,8 @@ public:
  	    //  Открываем файл чтобы записать туда информацию
 	    //  если файл не открылся выводим информацию об ошибке 
             if (!configFile.open(QIODevice::Append | QIODevice::Text)){
-		    qDebug() <<  "Cannot open the file \"config.txt\""; 
                     configFile.close();
-		    exit(-1);
+		    qFatal("Cannot open the file config.txt"); 
             }
 
 	    //Записываем информацию о сервисе
@@ -94,7 +91,7 @@ public:
 	    out << supportedFormats.join(", ");
 	    out << "\n";
 		
-           configFile.close();
+           configFile.close();*/
 	   emit serviceRegistered(name);
    }
    void OpenFile(QString path){
@@ -102,8 +99,7 @@ public:
 
 	  //Проверяем на существование файла
 	  if(!fileInf.exists()){
-		  qDebug() <<  "File does not exist";
-		  exit(-1);
+		  qFatal("File does not exist");
           }
 
 	  QString formatFile = fileInf.suffix(); // Получаем  формат файлa
@@ -112,12 +108,10 @@ public:
           //  Открываем файл чтобы считать  отуда информацию
 	  //  если файл не открылся выводим информацию об ошибке 
 	  if (!configFile.open(QIODevice::ReadOnly | QIODevice::Text)){
-              qDebug() << "Cannot open the file \"config.txt\""; 
-              exit(-1);
+              qFatal("Cannot open the file config.txt"); 
           }
 	  
 	  //Проверяем содержит ли данный сервис нужный формат
-
 	   QString service;
 	   bool isFormat = false;
 	   QTextStream in(&configFile);
@@ -143,42 +137,49 @@ public:
 	            }
 
             }
-
-	   configFile.close();
+            configFile.close();
+	   
 	   //Проверяем нашли ли мы сервер для открытия файла
 	   if(!isFormat){
-		   qDebug() << "No D-Bus services available to open the file";
-		   exit(-1);
+		   qInfo() << "No D-Bus services available to open the file";
+		   return;
            }
 	   //Открываем файл с помощью найденного сервиса
 	   OpenFileUsingService(path, service);
    }
 
-   void OpenFileUsingService(QString path,QString service){		   
-	   QDBusInterface iface(service, "/", "com.sharing.service", QDBusConnection::sessionBus());
+   void OpenFileUsingService(QString path,QString service){
+           //подключаемся к интерфейсу Introspect чтобы найти название интерфейса
+	   QDBusInterface ifaceIntrospect(service, "/", QString(), QDBusConnection::sessionBus());
+	   QString interfaceName;
+           // Получаем информацию о доступных интерфейсах
+           QDBusReply<QString> reply = ifaceIntrospect.call("Introspect");
+           if (reply.isValid()) {
+              interfaceName =  reply.value();
+           } else {
+               qDebug() << reply.error().message();
+	       qFatal("Failed to find out interface name.");
+           }
+           //Подключаемся к интерфейсу для открытия
+	   QDBusInterface iface(service, "/", "", QDBusConnection::sessionBus());
 	   if(!iface.isValid()){
-		   qDebug() << "Failed to run interface" <<service;
-		   exit(-1);
+		   qFatal("Failed to run interface.");
 	   }else{
-		   qDebug() << "Conect to interface " << service;
+		   qInfo() << "Conect to interface: " << service;
 	   }
+	   //Принимаем асинхронное сообщение от фызова функции OpenFile()
 	   QDBusPendingCall pcall  = iface.asyncCall("OpenFile", path);
 	   auto watcher = new QDBusPendingCallWatcher(pcall, this);
 	   QObject::connect(watcher, &QDBusPendingCallWatcher::finished, this,
                      [&](QDBusPendingCallWatcher *w) {
         	     	QDBusPendingReply<void> reply(*w);
 			if(reply.isError()){
-				qDebug() << "Error to read the file " << reply.error().message();
+				qDebug() << reply.error().message();
+				qFatal("Error to read the file.");
 			}else{
-				qDebug() << "Readin the  file was successfule";
+				qInfo() << "Readin the  file was successfule";
 			}
            }); 
-	   /*
-	   if (reply.type() == QDBusMessage::ErrorMessage) {
-		   qDebug() << "Error to open service" << reply.errorMessage();
-    	   } else {
-           	  qDebug() << "Service" << service <<" is successfully open." ;
-    	   }*/
 	   emit fileOpened(path);
    }
 
@@ -187,7 +188,7 @@ signals:
    void fileOpened(const QString &path);
 private slots:
 	void onFileOpened(const QString &path){
-		qDebug() <<  "File opened" <<path;
+		qInfo() <<  "File opened" <<path;
 	}
 
 };
@@ -197,7 +198,7 @@ int main(int argc, char *argv[]) {
 
     SharingService service;
 
-    qDebug() << "QDBus wait............";
+    qInfo() << "QDBus wait............";
 
     return app.exec();
 }
