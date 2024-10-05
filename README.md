@@ -7,6 +7,9 @@
    qmake client.pro
    make
 ```
-#Измените в файле `client.pro` 
-`/path/to/lib` на путь к библиотеке SharingService
-#Для запуска примера нужно скачать библиотеку SharingService
+# Для запуска в разных терминалах нужно запустить
+```bash
+  ./ClientService
+  ./SharingService
+```
+# Для простаты примера имя регестрируемого сервиса задано 
