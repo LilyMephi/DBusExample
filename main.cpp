@@ -50,56 +50,37 @@ public:
                 qInfo() << name << "is already registered with formats" << registeredFormats;
     }
 
-         // Сохраняем изменения
-         settings.sync();
-         emit serviceRegistered(name);
+    // Сохраняем изменения
+    settings.sync();
+   emit serviceRegistered(name);
    }
    void OpenFile(QString path){
+	  QSettings settings("config.ini", QSettings::IniFormat); 
 	  QFileInfo fileInf(path);
-
 	  //Проверяем на существование файла
 	  if(!fileInf.exists()){
 		  qFatal("File does not exist");
           }
 
 	  QString formatFile = fileInf.suffix(); // Получаем  формат файлa
-	 
-	  QFile configFile("config.txt");
-          //  Открываем файл чтобы считать  отуда информацию
-	  //  если файл не открылся выводим информацию об ошибке 
-	  if (!configFile.open(QIODevice::ReadOnly | QIODevice::Text)){
-              qFatal("Cannot open the file config.txt"); 
-          }
-	  
-	  //Проверяем содержит ли данный сервис нужный формат
-	   QString service;
-	   bool isFormat = false;
-	   QTextStream in(&configFile);
-	   QString line;
+	  QString service;
+	  bool isFormat = false;
+	  // Итерируемся по всем ключам
+          QStringList keys = settings.allKeys();
+    	  for (const QString &key : keys) {
+          	if (key.endsWith("/formats")) {
+          		QString registeredFormats = settings.value(key).toString();
+                	QStringList formatList = registeredFormats.split(",");
 
-	   //Считываем данные из файла и проверяем есть ли у сервиса нужное расшиерние файла
-	    while(!in.atEnd()){
-		    QStringList formats;
-		    line = in.readLine();		    
-		    // Считываем сервис
-                    if (line.startsWith("Service: ", Qt::CaseInsensitive)) {
-		        service =  line.mid(9).trimmed(); 
-		    }
-		    // Считываем форматы данного сервиса
-                    if (line.startsWith("Formats: ", Qt::CaseInsensitive)) {
-			formats << line.mid(9).trimmed().split(", "); 
-		    }
-
-		    // если нужное расширение есть добовляем его в список
-		    if(formats.contains(formatFile)){
-			    isFormat = true;
-			    break;
-	            }
-
-            }
-            configFile.close();
-	   
-	   //Проверяем нашли ли мы сервер для открытия файла
+                	// Проверяем, поддерживает ли сервис нужный формат
+                	if (formatList.contains(formatFile, Qt::CaseInsensitive)) {
+                		service = key.left(key.indexOf("/")); // Возвращаем имя сервиса
+				isFormat = true;
+				break;
+          		}
+        	 }
+    	  }
+	 	   //Проверяем нашли ли мы сервер для открытия файла
 	   if(!isFormat){
 		   qInfo() << "No D-Bus services available to open the file";
 		   return;
